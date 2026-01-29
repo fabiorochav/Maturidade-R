@@ -4,3 +4,10 @@
 .httr-oauth
 .DS_Store
 .quarto
+
+
+# Arquivos de dados (não versionar)
+*.xlsx
+*.xls
+*.zip
+EOF
