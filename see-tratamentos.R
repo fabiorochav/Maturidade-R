@@ -110,6 +110,12 @@ fam_gated <- list(
   V18  = c(paste0("V18_", 1:3), paste0("V18_", c(5,6,7,8))),  # 4º não existe; 5..8 existem
   V21  = paste0("V21_", 1:7),
   V24  = paste0("V24_", 1:6),
+  
+  
+  V23  = paste0("V23_", 1:5),   # ← faltava aqui
+  V26  = paste0("V26_", 1:5),   # ← faltava aqui
+  
+  
   V28  = paste0("V28_", 1:8),
   V29  = paste0("V29_", 1:9),
   V30  = paste0("V30_", 1:8),
@@ -137,33 +143,50 @@ tec_depara <- tec_exclusao %>%
       see == 4 ~ "4. SEE Piauí",
       TRUE     ~ NA_character_
     )
-  ) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
+  ) %>%  
   
   # Likert 1..4
-  mutate(across(any_of(likert_1to4), rec_1to4, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(likert_1to4), rec_1to4, .names = "{.col}_ajustada")) %>%  
   # Tri 1..3 (0/.5/1)
-  mutate(across(any_of(tri_1to3), rec_1to3_0_05_1, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(tri_1to3), rec_1to3_0_05_1, .names = "{.col}_ajustada")) %>%  
   # Binário 1/2 -> 1/0
-  mutate(across(any_of(bin_12_10), rec_bin12_10, .names = "{.col}_ajustada"))       # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-
+  mutate(across(any_of(bin_12_10), rec_bin12_10, .names = "{.col}_ajustada"))       
 # ---- Famílias gated (precisam do *_77 == 0) ----
 # Vamos aplicar família a família para acessar o flag correto.
 
 # helper para aplicar uma família gated dada a "raiz" (ex.: "V07")
 aplica_familia_gated <- function(df, raiz, itens) {
+  
   flag_col <- paste0(raiz, "_77")
-  if (!flag_col %in% names(df)) return(df)  # se o flag não existir, não faz nada
-  # só processa itens que existem no df
   cols <- intersect(itens, names(df))
   if (length(cols) == 0) return(df)
-  df %>%
-    mutate(across(
-      all_of(cols),
-      ~ rec_01_gated(.x, .data[[flag_col]]),
-      .names = "{.col}_ajustada"
-    ))
+  
+  # caso exista flag _77
+  if (flag_col %in% names(df)) {
+    
+    df <- df %>%
+      mutate(across(
+        all_of(cols),
+        ~ rec_01_gated(.x, .data[[flag_col]]),
+        .names = "{.col}_ajustada"
+      ))
+    
+  } else {
+    
+    # caso NÃO exista flag
+    df <- df %>%
+      mutate(across(
+        all_of(cols),
+        ~ case_when(
+          .x == 0 ~ 0,
+          .x == 1 ~ 1,
+          TRUE ~ NA_real_
+        ),
+        .names = "{.col}_ajustada"
+      ))
+  }
+  
+  df
 }
 
 for (raiz in names(fam_gated)) {
@@ -335,7 +358,7 @@ tec_medias <- ratio_with_dups(tec_medias, c("V26_1"),                           
 tec_medias <- ratio_with_dups(tec_medias, paste0("V26_", 1:5),                     "V26_1_2_3_4_5_media")
 tec_medias <- ratio_with_dups(tec_medias, c("V26_2"),                              "V26_2_media")
 tec_medias <- ratio_with_dups(tec_medias, c("V26_2","V26_4"),                      "V26_2_4_media")
-tec_medias <- ratio_with_dups(tec_medias, c("V26_3","V26_5","V26_3","V26_5"),      "V26_3_5_media")  # duplicado no SQL
+tec_medias <- ratio_with_dups(tec_medias, c("V26_3","V26_5"),                       "V26_3_5_media")  # duplicado no SQL
 
 # V28
 tec_medias <- ratio_with_dups(tec_medias, paste0("V28_", 1:8),                     "V28_1_2_3_4_5_6_7_8_media")
@@ -549,7 +572,6 @@ add_descritor_ratio <- function(df, bases_ajustada, new_name) {
 
 descritores_see_tecnico <- agregado_por_see_tecnico_nd %>%
   mutate(SRE = "Agregado SEE")  # igual ao SELECT ... 'Agregado SEE' AS SRE
-# [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/3%20calcula%20descritor.sql)
 
 # --- A1* ---
 descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V103_ajustada"),                     "A1D1_1")
@@ -592,7 +614,7 @@ descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V84_a
 descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V60_ajustada"),                      "A4D1_5")
 descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V83_ajustada"),                      "A4D1_7")
 # A4D3_10 no SQL soma V26_3_5_ajustada DUAS vezes (num e den) -> preservamos duplicidade
-descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V26_3_5_ajustada","V26_3_5_ajustada"), "A4D3_10")
+descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V26_3_5_ajustada"),                  "A4D3_10")
 descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V26_1_2_3_4_5_ajustada"),            "A4D3_13")
 descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V26_2_ajustada"),                    "A4D3_15")
 descritores_see_tecnico <- add_descritor_ratio(descritores_see_tecnico, c("V25_ajustada"),                      "A4D3_16")
@@ -774,11 +796,19 @@ descritores_long_tecnico_see <- descritores_see_tecnico %>%
   arrange(ATOR, SEE, SRE, descritor)
 
 
+# base final selecionada - sre
+final.descritores.see = descritores_long_tecnico_see %>% 
+  select(SEE, SRE, ATOR, descritor, valor)
 
 
+saveRDS(final.descritores.see, "final.descritores.see.R")
+
+# Leitura
+c = readRDS("final.descritores.see.R")
 
 
-
+#exportar excel
+writexl::write_xlsx(final.descritores.see, "final.descritores.see.xlsx")
 
 
 

@@ -98,7 +98,7 @@ flags_77 <- c("V06_77","V11_77","V21_77","V24_77","V26_77","V27_77","V45_77",
               "V46_77","V60_77","V63_77","V66_77","V68_77")
 
 # Likert "padrão" 1..4 -> 0..1 (sem 77/88)
-likert_plain <- c("V10","V12","V14","V15","V16","V17","V18","V19","V20",
+likert_plain <- c("V02", "V10","V12","V14","V15","V16","V17","V18","V19","V20",
                   "V25","V28","V31","V32","V33","V34","V35","V36","V37",
                   "V41","V42","V57")
 
@@ -125,26 +125,19 @@ dg_depara <- dg_exclusao %>%
       SEE == 4 ~ "4. SEE Piauí",
       TRUE     ~ NA_character_
     )
-  ) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  ) %>%  # [
   # Famílias 0/1 -> 0/1
-  mutate(across(any_of(fam_01), rec_01, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(fam_01), rec_01, .names = "{.col}_ajustada")) %>%  # 
   # Flags _77 -> 0
-  mutate(across(any_of(flags_77), rec_flag77_to_zero, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(flags_77), rec_flag77_to_zero, .names = "{.col}_ajustada")) %>%  # 
   # Likert padrão 1..4
-  mutate(across(any_of(likert_plain), rec_1to4, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(likert_plain), rec_1to4, .names = "{.col}_ajustada")) %>%  # 
   # Likert 1..4 com 77->0
-  mutate(across(any_of(likert_77zero), rec_1to4_77zero, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(likert_77zero), rec_1to4_77zero, .names = "{.col}_ajustada")) %>%  # [
   # Likert 1..4 com 88->0
-  mutate(across(any_of(likert_88zero), rec_1to4_88zero, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(likert_88zero), rec_1to4_88zero, .names = "{.col}_ajustada")) %>%  # [
   # Tri 1/2/3
-  mutate(across(any_of(tri_1to3), rec_1to3_0_05_1, .names = "{.col}_ajustada")) %>%  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-  
+  mutate(across(any_of(tri_1to3), rec_1to3_0_05_1, .names = "{.col}_ajustada")) %>%  # [
   # Casos especiais 1: V01, V03, V04, V05, V22, V29, V30, V49, V51, V58, V65, V67
   mutate(
     V01_ajustada = case_when(V01 == 1 ~ 1.00, V01 == 2 ~ 0.00,                              TRUE ~ NA_real_),
@@ -166,8 +159,7 @@ dg_depara <- dg_exclusao %>%
     V38_ajustada = case_when(V38 == 1 ~ 0.33, V38 == 2 ~ 0.66, V38 == 3 ~ 1.00,             TRUE ~ NA_real_),
     V40_ajustada = case_when(V40 == 1 ~ 1.00, V40 == 2 ~ 0.33, V40 == 3 ~ 0.66, V40 == 4 ~ 0.00, TRUE ~ NA_real_),
     V62_ajustada = case_when(V62 == 1 ~ 1.00, V62 == 2 ~ 0.66, V62 == 3 ~ 0.33, V62 == 4 ~ 0.00, TRUE ~ NA_real_)
-  )        # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/1%20aplica%20depara.sql)
-
+  )        # 
 
 # ================================================
 # calcula media por questoes multiplas
@@ -844,6 +836,37 @@ descritores_long_sre_dg <- descritores_por_sre_dg %>%
   ) %>%
   mutate(valor = as.numeric(valor)) %>%
   arrange(ATOR, SEE, SRE, descritor)
+
+
+# base final selecionada - see
+final.descritores.sre = descritores_long_sre_dg %>% 
+  select(SEE, SRE, ATOR, descritor, valor)
+
+# base final selecionada - sre
+final.descritores.see = descritores_long_see_dg %>% 
+  select(SEE, SRE, ATOR, descritor, valor)
+
+# empilhar ambas
+final.descritores.dupla = bind_rows(final.descritores.sre, final.descritores.see)
+
+saveRDS(final.descritores.dupla, "final.descritores.dupla.R")
+# Leitura
+b = readRDS("final.descritores.dupla.R")
+
+#exportar excel
+writexl::write_xlsx(final.descritores.dupla, "final.descritores.dupla.xlsx")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

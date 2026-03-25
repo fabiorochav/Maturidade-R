@@ -42,6 +42,15 @@ acg_filtrado <- acg %>%
   # 3) Remover KEYs da lista de banidos
   filter(!(KEY %in% keys))
 
+# Criar variavel que não foi criada - problema durante o calculo!!!
+acg_filtrado <- acg_filtrado %>%
+  mutate(
+    V11_1  = ifelse(V11 == 1, 1, 0),
+    V11_2  = ifelse(V11 == 2, 1, 0),
+    V11_3  = ifelse(V11 == 3, 1, 0),
+    V11_77 = ifelse(V11 == 77, 1, 0)
+  )
+
 
 # =======================================================
 # de para
@@ -89,30 +98,86 @@ recode_77_flag_to_zero <- function(x) dplyr::case_when(
   TRUE     ~ 0.00
 )
 
+
+recode_1to4_sem77 <- function(x) case_when(
+  x == 1 ~ 0.00,
+  x == 2 ~ 0.33,
+  x == 3 ~ 0.66,
+  x == 4 ~ 1.00,
+  TRUE   ~ NA_real_
+)
+
+
+recode_v27 <- function(x){
+  num <- case_when(
+    x == 1 ~ 1,
+    x == 0 ~ 0,
+    TRUE ~ NA_real_
+  )
+  
+  den <- case_when(
+    x %in% c(0,1) ~ 1,
+    TRUE ~ 0
+  )
+  
+  list(num = num, den = den)
+}
+
+
+
 # 2) Listas de variáveis por padrão (com base no .sql) ------------------------
 # Obs.: usei any_of() para não quebrar se alguma coluna não existir na sua planilha.
 
 # Binário 1/2 -> 1/0
 bin_12_to_10 <- c(
-  "V01","V02","V03","V05","V13","V20","V24","V29","V30","V31",
-  "V66A","V67A","V78A","V81","V82","V83","V97","V104","V105"
+  "V01","V02","V03","V05","V20","V24",
+  
+  #"V27",
+  
+  "V29","V30","V31",
+  "V13",
+  "V66A","V67A","V81","V82","V83","V97","V104","V105"
 )
 
 # Likert 1..4 -> 0..1 (muitos têm 77->0 no .sql)
 likert_1to4 <- c(
+  
   "V14","V16","V18","V26","V33","V34","V35","V40","V41","V43","V44","V45",
-  "V51","V53","V54","V72","V73","V75","V76","V78","V79","V87","V89","V90",
-  "V91","V92","V93","V94","V100","V106","V107","V108","V109","V110","V111",
-  "V112","V115","V116"
+  "V53","V54","V72","V73","V75","V76",
+  
+  "V78A", # faltava
+  "V78",
+  "V66",
+  
+  "V79","V87","V89","V90",
+  "V91","V92","V93","V94","V100","V106","V107","V108","V109","V110",
+  
+  #"V111",
+  
+  "V103" , # faltava
+  
+  #"V112",
+  
+  "V115","V116"
 )
 
 # Tri 1/2/3 -> 0 / 0.5 / 1
-tri_1to3 <- c("V11","V39","V80A","V113")
+tri_1to3 <- c("V39","V80A","V113", "V11") # faltatav V83 e v11
 
 # Famílias 0/1 -> 0/1
 fam_01 <- c(
-  paste0("V08_", c(1:12)), paste0("V09_", c(1:7)), paste0("V10_", c(1:7)),
+  paste0("V08_", c(1:12)), 
+  paste0("V09_", c(1:7)), 
+  paste0("V10_", c(1:7)),
+  
+  paste0("V19_", 1:6),
+  
+  paste0("V86_", 1:3),
+  
   paste0("V21_", c(1:6)),
+  
+  paste0("V27_", c(1:7)),
+  
   paste0("V38_", c(1:7)),
   paste0("V56_", c(1:6)),
   paste0("V57_", c(1:6)),
@@ -122,21 +187,38 @@ fam_01 <- c(
   paste0("V67_", c(1:13)),
   paste0("V68_", c(1:12)),
   paste0("V74_", c(1:5)),
-  paste0("V80_", c(1:10))
+  paste0("V80_", c(1:10)),
+  paste0("V85_", c(1:7)),
+  
+  paste0("V98_", c(1:6)),
+  
+  paste0("V102_", 1:3),
+  
+  paste0("V114_", 1:7)
 )
 
 # Sufixos "_77" que no .sql são sempre 0
 flags_77 <- c(
-  "V08_77","V09_77","V10_77","V21_77","V38_77","V56_77","V57_77","V63_77",
+  "V08_77","V09_77","V10_77","V21_77",
+  
+  #"V27_77",
+  
+  "V38_77","V56_77","V57_77","V63_77",
   "V64_77","V65_77","V67_77","V68_77","V74_77","V80_77","V95_77","V99_77",
-  "V101_77","V102_77"
+  "V86_77", # faltava
+  "V101_77","V102_77", "V11_77"
 )
 
 # Casos específicos com regras distintas no .sql (exemplos selecionados)
 casos_espec <- list(
+  
+  V04 = c(1, 1.00, 2, 0.00, 3, 0.00),
+  
   V06  = c(1,0.00, 2,0.33, 3,0.66, 4,1.00, 77,0.00),
   V07  = c(1,1.00, 2,0.00, 3,0.00),
-  V11  = c(1,0.00, 2,0.50, 3,1.00, 77,0.00),  # também coberto por tri_1to3
+  
+  V11 = c(1,0.00, 2,0.50, 3,1.00, 77,0.00), # faltava
+ 
   V33  = c(1,0.00, 2,0.33, 3,0.66, 4,1.00, 77,0.00),
   V34  = c(1,0.00, 2,0.33, 3,0.66),
   V39  = c(1,0.00, 2,0.50, 3,1.00, 77,0.00),  # também no tri_1to3
@@ -145,6 +227,9 @@ casos_espec <- list(
   V51  = c(1,0.00, 2,0.33, 3,0.66, 77,0.00),
   V53  = c(1,0.00, 2,0.33, 3,0.66, 4,1.00, 77,0.00),
   V54  = c(1,0.00, 2,0.33, 3,0.66, 4,1.00, 77,0.00),
+  
+  V87 = c(1,0.00, 2,0.33, 3,0.66, 4,1.00), # faltava
+  
   V88  = c(1,0.66, 2,0.00, 3,1.00),
   V95_1= c(0,0.00, 1,1.00),
   V95_2= c(0,0.00, 1,1.00),
@@ -168,7 +253,6 @@ casos_espec <- list(
 )
 
 # 3) Aplicar de-para (mutate) --------------------------------------------------
-
 acg_depara <- acg_filtrado %>%
   # SEE_rotulo
   mutate(
@@ -207,13 +291,94 @@ acg_depara <- acg_filtrado %>%
     out
   }
 
+acg_depara <- acg_depara %>%
+  mutate(
+    V11_1_ajustada = recode_01_same(V11_1),
+    V11_2_ajustada = recode_01_same(V11_2),
+    V11_3_ajustada = recode_01_same(V11_3),
+    V11_77_ajustada = recode_77_flag_to_zero(V11_77)
+  )
+
+acg_depara <- acg_depara %>%
+  mutate(
+    V21_media = case_when(
+      V21_77_ajustada == 0 ~ 1.0,
+      V21_77_ajustada == 1 ~ 0.0,
+      TRUE ~ NA_real_
+    )
+  )
+
+acg_depara <- acg_depara %>%
+  mutate(
+    V111_ajustada = recode_1to4_sem77(V111),
+    V112_ajustada = recode_1to4_sem77(V112)
+  )
+
+for(i in 1:7){
+  
+  tmp <- recode_v27(acg_filtrado[[paste0("V27_", i)]])
+  
+  acg_depara[[paste0("V27_", i, "_ajustada_numerador")]] <- tmp$num
+  acg_depara[[paste0("V27_", i, "_ajustada_denominador")]] <- tmp$den
+  
+}
+
+acg_depara <- acg_depara %>%
+  rowwise() %>%
+  mutate(
+    V27_1_2_3_3_4_5_6_7_media = {
+      
+      num <- 
+        V27_1_ajustada_numerador +
+        V27_2_ajustada_numerador +
+        2 * V27_3_ajustada_numerador +
+        V27_4_ajustada_numerador +
+        V27_5_ajustada_numerador +
+        V27_6_ajustada_numerador +
+        V27_7_ajustada_numerador
+      
+      den <- 
+        V27_1_ajustada_denominador +
+        V27_2_ajustada_denominador +
+        2 * V27_3_ajustada_denominador +
+        V27_4_ajustada_denominador +
+        V27_5_ajustada_denominador +
+        V27_6_ajustada_denominador +
+        V27_7_ajustada_denominador
+      
+      ifelse(den != 0, num/den, 0)
+    }
+  ) %>%
+  ungroup()
+
+acg_depara <- acg_depara %>%
+  mutate(
+    V27_1_2_3_3_4_5_6_7_ajustada = V27_1_2_3_3_4_5_6_7_media
+  )
+
+v98_cols <- grep("^V98_\\d+_ajustada$", names(acg_depara), value = TRUE)
+
+acg_depara <- acg_depara %>%
+  rowwise() %>%
+  mutate(
+    V98_media = ifelse(
+      sum(c_across(all_of(v98_cols)), na.rm = TRUE) != 0,
+      1,
+      0
+    )
+  ) %>%
+  ungroup()
+
 # =======================================================
 # criaçao de numeradores e denominadores
 # =======================================================
 
-
 # 1) Liste todas as colunas que terminam com "_ajustada"
-cols_ajustadas <- names(acg_depara)[grepl("_ajustada$", names(acg_depara))]
+cols_ajustadas <- c(
+  names(acg_depara)[grepl("_ajustada$", names(acg_depara))],
+  "V21_media",
+  "V98_media"
+)
 
 # 2) Crie numeradores (NA -> 0) e denominadores (NA -> 0; não-NA -> 1)
 acg_nd <- acg_depara %>%
@@ -227,6 +392,7 @@ acg_nd <- acg_depara %>%
            ~ ifelse(is.na(.x), 0, 1),
            .names = "{.col}_denominador")
   )
+
 
 # =======================================================
 # média por questões multiplas
@@ -260,13 +426,23 @@ grupos <- list(
   "V08_6_7_media"              = c("V08_6","V08_7"),
   "V08_9_media"                = c("V08_9"),
   "V10_1_2_3_4_5_6_7_media"    = paste0("V10_", 1:7),
+  
+ #"V11_1_2_3_media"             = paste0("V11_", 1:3),
+  
   "V101_1_2_3_4_5_6_7_8_9_media" = paste0("V101_", 1:9),
   "V102_1_2_3_media"           = paste0("V102_", 1:3),
   "V114_1_2_3_4_5_6_7_media"   = paste0("V114_", 1:7),
+ 
+ 
   "V19_1_2_3_4_5_6_media"      = paste0("V19_", 1:6),
-  # Nota: no SQL aparece "V27_1_2_3_3_4_5_6_7_media"; aqui removemos a duplicata de V27_3
-  "V27_1_2_3_4_5_6_7_media"    = paste0("V27_", c(1,2,3,4,5,6,7)),
-  "V38_1_2_3_4_5_6_7_media"    = paste0("V38_", 1:7),
+ 
+  #"V21_1_2_3_4_5_6_media" = paste0("V21_", 1:6),
+ 
+  # Nota: no SQL aparece "V27_1_2_3_3_4_5_6_7_media
+ 
+ #"V27_1_2_3_3_4_5_6_7_media" = paste0("V27_", c(1,2,3,3,4,5,6,7)),
+  
+ "V38_1_2_3_4_5_6_7_media"    = paste0("V38_", 1:7),
   
   # Blocos V63
   "V63_1_3_media"              = paste0("V63_", c(1,3)),
@@ -320,8 +496,7 @@ grupos <- list(
   "V95_1_2_3_4_5_6_media"      = paste0("V95_", 1:6),
   "V86_1_2_3_media"            = paste0("V86_", 1:3)
 )
-# (Todos os agrupamentos acima foram extraídos do seu .sql da etapa 3.)  # [1](https://sgpiu-my.sharepoint.com/personal/fabio_vianna_institutounibanco_org_br/Documents/Arquivos%20de%20Microsoft%20Copilot%20Chat/3%20calcula%20media%20de%20questoes%20multiplas.sql)
-
+# (Todos os agrupamentos acima foram extraídos do .sql)  
 # ==== Aplicar os grupos nas linhas ====
 acg_medias <- acg_nd
 for (nm in names(grupos)) {
@@ -334,18 +509,12 @@ v98_nums <- intersect(paste0("V98_", 1:6, "_ajustada_numerador"), names(acg_medi
 acg_medias <- acg_medias %>%
   mutate(
     # 1 se _77 == 0; senão 0
-    V21_media = ifelse(!is.na(V21_77_ajustada) & V21_77_ajustada == 0, 1.0, 0.0),
+    #V21_media = ifelse(!is.na(V21_77_ajustada) & V21_77_ajustada == 0, 1.0, 0.0),
     V56_media = ifelse(!is.na(V56_77_ajustada) & V56_77_ajustada == 0, 1.0, 0.0),
     V57_media = ifelse(!is.na(V57_77_ajustada) & V57_77_ajustada == 0, 1.0, 0.0),
-    V99_media = ifelse(!is.na(V99_77_ajustada) & V99_77_ajustada == 0, 1.0, 0.0),
+    V99_media = ifelse(!is.na(V99_77_ajustada) & V99_77_ajustada == 0, 1.0, 0.0))
     
-    # V98_media: 1 se algum numerador V98_1..V98_6 != 0; senão 0
-    V98_media = if (length(v98_nums) == 0) {
-      0
-    } else {
-      as.numeric(if_any(all_of(v98_nums), ~ coalesce(.x, 0) != 0))
-    }
-  )
+
 
 #=========================================================================
 # agregação - ator see
@@ -376,6 +545,13 @@ campos_agregar <- c(
   "V108_ajustada" = "V108_ajustada",
   "V109_ajustada" = "V109_ajustada",
   "V11_ajustada"  = "V11_ajustada",
+  
+  "V13_ajustada"  = "V13_ajustada",
+  
+  "V14_ajustada"  = "V14_ajustada",
+  
+  "V11_1_2_3_media" = "V11_1_2_3_ajustada",
+  
   "V110_ajustada" = "V110_ajustada",
   "V111_ajustada" = "V111_ajustada",
   "V112_ajustada" = "V112_ajustada",
@@ -386,14 +562,18 @@ campos_agregar <- c(
   "V14_ajustada"  = "V14_ajustada",
   "V16_ajustada"  = "V16_ajustada",
   "V18_ajustada"  = "V18_ajustada",
+  
   "V19_1_2_3_4_5_6_media" = "V19_1_2_3_4_5_6_ajustada",
+  
   "V20_ajustada" = "V20_ajustada",
+  
   "V21_media"    = "V21_ajustada",
+  
   "V24_ajustada" = "V24_ajustada",
   "V26_ajustada" = "V26_ajustada",
   # No seu SQL aparece "V27_1_2_3_3_4_5_6_7_media" (duplicando o 3);
   # aqui usamos o nome criado na etapa 3 sem duplicata, se for o seu caso:
-  "V27_1_2_3_4_5_6_7_media" = "V27_1_2_3_3_4_5_6_7_ajustada",
+  "V27_1_2_3_3_4_5_6_7_media" = "V27_1_2_3_3_4_5_6_7_ajustada",
   "V29_ajustada" = "V29_ajustada",
   "V31_ajustada" = "V31_ajustada",
   "V33_ajustada" = "V33_ajustada",
@@ -554,11 +734,12 @@ descritores <- list(
   A3D2_4  = c("V79"),
   A3D2_5  = c("V67_1","V68_1"),
   A3D4_9  = c("V63_16","V64_16"),
-  A4D1_2  = c("V11"),
+  
+  A4D1_7 = c("V86_1_2_3","V87","V88"),
+  
   A4D1_3  = c("V80_A"),
   A4D1_4  = c("V91"),
   A4D1_5  = c("V16"),
-  A4D1_7  = c("V86_1_2_3","V87","V88"),
   A4D2_9  = c("V89"),
   A4D3_11 = c("V103"),
   A4D3_12 = c("V26"),
@@ -566,9 +747,12 @@ descritores <- list(
   A4D4_20 = c("V63_6","V64_6"),
   A4D4_21 = c("V63_7_8","V64_7_8"),
   
+  A4D1_2 = c("V11"),
+  
   E1D1_4  = c("V06"),
   E1D1_5  = c("V01","V02"),
   E1D2_10 = c("V14"),
+  
   # No SQL, V08_6_7 aparece duas vezes; aqui usamos uma vez só:
   E1D2_6  = c("V08_6_7"),
   E1D2_7  = c("V78"),
@@ -578,7 +762,9 @@ descritores <- list(
   E2D1_11 = c("V08_1_10_11_3_8"),
   E2D1_12 = c("V80_1_3_6_8_9"),
   E2D1_3  = c("V03"),
+  
   E2D1_5  = c("V11"),
+  
   E2D1_6  = c("V80_A"),
   E2D1_8  = c("V08_9"),
   E2D1_9  = c("V80_7"),
@@ -747,7 +933,6 @@ agregado_sre_nd <- agregado_por_sre %>%
   )
 
 # reutilize a add_descritor() e a lista 'descritores' que já definimos antes
-
 descritores_por_sre <- agregado_sre_nd %>%
   mutate(SRE = sre)   # mantém a identificação da SRE na coluna SRE
 
@@ -769,13 +954,34 @@ descritores_long_sre <- descritores_por_sre %>%
   arrange(ATOR, SEE, sre, SRE, descritor)
 
 
+# base final selecionada - see
+final.descritores.see = descritores_por_see %>% 
+  select(starts_with(c("S", "A", "E")))
 
+final.descritores.see = final.descritores.see %>% 
+  pivot_longer(
+    cols = -c(SEE, SRE, ATOR),
+    names_to = "descritor",
+    values_to = "valor"
+  )
 
+# base final selecionada - sre
+final.descritores.sre = descritores_por_sre %>% 
+  select(starts_with(c("S", "A", "E")))
 
+final.descritores.sre = final.descritores.sre %>% 
+  pivot_longer(
+    cols = -c(SEE, SRE, sre, ATOR),
+    names_to = "descritor",
+    values_to = "valor"
+  ) %>% 
+  select(-sre)
 
+# empilhar ambas
+final.descritores.acg = bind_rows(final.descritores.sre, final.descritores.see)
 
+saveRDS(final.descritores.acg, "final.descritores.acg.R")
 
-
-
-
+#exportar excel
+writexl::write_xlsx(final.descritores.acg, "final.descritores.acg.xlsx")
 
